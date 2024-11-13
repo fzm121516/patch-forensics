@@ -1,3 +1,14 @@
+
+python test.py  --which_epoch best_val --partition test \
+	--dataset_name celebahq-pgan-pretrained \
+	--real_im_path /home/fanzheming/zm/NPR-DeepfakeDetection/dataset/ForenSynths8test/ForenSynths/stylegan2/car/0_real \
+	--fake_im_path /home/fanzheming/zm/NPR-DeepfakeDetection/dataset/ForenSynths8test/ForenSynths/stylegan2/car/1_fake \
+	--train_config checkpoints/gp1-gan-winversion_seed0_xception_block2_constant_p20/opt.yml \
+        --name gp1-gan-winversion_seed0_xception_block2_constant_p20
+
+
+
+
 # Patch Forensics
 [Project Page](https://chail.github.io/patch-forensics/) |  [Paper](http://arxiv.org/abs/2008.10588) 
 

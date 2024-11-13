@@ -125,6 +125,7 @@ def compute_metrics(predictions, labels, save_path, threshold=0.5, plot=True):
         labels, predictions[:, 1])
     print("ap: %0.6f" % ap)
     acc = metrics.accuracy_score(labels, np.argmax(predictions, axis=1))
+    print("acc: %0.6f" % acc)  # Add this line to print accuracy
     np.savez(save_path + '.npz', ap=ap, precision=precision,
              recall=recall, thresholds=thresholds, acc=acc, n=len(labels))
     if plot:

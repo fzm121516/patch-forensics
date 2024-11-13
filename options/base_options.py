@@ -1,18 +1,14 @@
 import argparse
 import os
-from utils import util
-from utils import options
 import torch
-import models
 
-class BaseOptions(options.Options):
-    def __init__(self, print_opt=True):
-        options.Options.__init__(self)
-        self.isTrain = False # train_options will change this
-        self.print_opt = print_opt
-        parser = self.parser
 
-        # model setup
+class BaseOptions():
+    def __init__(self):
+        self.initialized = False
+
+    def initialize(self, parser):
+        parser.add_argument('--isTrain', action='store_true', default=False)
         parser.add_argument('--model', type=str, default='basic_discriminator', help='chooses which model to use')
         parser.add_argument('--which_model_netD', type=str, default='resnet18', help='selects model to use for netD')
         parser.add_argument('--fake_class_id', type=int, default=0, help='class id of fake ims')
@@ -39,53 +35,83 @@ class BaseOptions(options.Options):
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
         parser.add_argument('--results_dir', type=str, default='./results/', help='saves results here.')
 
-    def parse(self):
 
-        opt = options.Options.parse(self, print_opt=False)
+        self.initialized = True
+        return parser
 
-        # modify model-related parser options 
-        model_name = opt.model
-        model_option_setter = models.get_option_setter(model_name)
-        self.parser = model_option_setter(self.parser)
-        opt = options.Options.parse(self, print_opt=False)
+    def gather_options(self):
+        # initialize parser with basic options
+        if not self.initialized:
+            parser = argparse.ArgumentParser(
+                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+            parser = self.initialize(parser)
 
-        opt.isTrain = self.isTrain
+        # get the basic options
+        opt, _ = parser.parse_known_args()
+        self.parser = parser
 
-        # default model name
-        if opt.name == '':
-            opt.name = '{model}_{which_model_netD}_size{fineSize}'.format(**vars(opt))
-        else:
-            opt.name = opt.name.format(**vars(opt))
+        return parser.parse_args()
+
+    def print_options(self, opt):
+        message = ''
+        message += '----------------- Options ---------------\n'
+        for k, v in sorted(vars(opt).items()):
+            comment = ''
+            default = self.parser.get_default(k)
+            if v != default:
+                comment = '\t[default: %s]' % str(default)
+            message += '{:>25}: {:<30}{}\n'.format(str(k), str(v), comment)
+        message += '----------------- End -------------------'
+        print(message)
+
+        # save to the disk
+        expr_dir = os.path.join(opt.checkpoints_dir, opt.name)
+        if not os.path.exists(opt.checkpoints_dir):
+            os.makedirs(opt.checkpoints_dir)  # 创建 checkpoints_dir（及其上层目录）
+            os.mkdir(expr_dir)  # 创建 expr_dir
+
+        file_name = os.path.join(expr_dir, 'opt.txt')
+        with open(file_name, 'wt') as opt_file:
+            opt_file.write(message)
+            opt_file.write('\n')
+
+    def parse(self, print_options=True):
+
+        opt = self.gather_options()
+        # opt.isTrain = self.isTrain   # train or test
 
         # process opt.suffix
-        if opt.suffix:
-            suffix = ('_' + opt.suffix.format(**vars(opt))) if opt.suffix != '' else ''
-            opt.name = opt.name + suffix
-            opt.suffix = ''
+        # if opt.suffix:
+        #     suffix = ('_' + opt.suffix.format(**vars(opt))) if opt.suffix != '' else ''
+        #     opt.name = opt.name + suffix
 
-        # process opt.prefix
-        if opt.prefix:
-            prefix = (opt.prefix.format(**vars(opt))) if opt.prefix != '' else ''
-            prefix += '-'
-            opt.name = prefix + opt.name
-            opt.prefix = ''
-
-        # print options after name/prefix/suffix is modified
-        if self.print_opt:
+        if print_options:
             self.print_options(opt)
 
         # set gpu ids
-        str_ids = opt.gpu_ids
-        if isinstance(opt.gpu_ids, str):
-            str_ids = opt.gpu_ids.split(',')
+        str_ids = opt.gpu_ids.split(',')
         opt.gpu_ids = []
         for str_id in str_ids:
             id = int(str_id)
             if id >= 0:
                 opt.gpu_ids.append(id)
-            if len(opt.gpu_ids) > 0 and torch.cuda.is_available():
-                torch.cuda.set_device(opt.gpu_ids[0])
+        if len(opt.gpu_ids) > 0:
+            torch.cuda.set_device(opt.gpu_ids[0])
 
-        # check both image paths are specified
-        assert(opt.real_im_path and opt.fake_im_path)
-        return opt
+        # additional
+        #opt.classes = opt.classes.split(',')
+        # opt.rz_interp = opt.rz_interp.split(',')
+        # opt.blur_sig = [float(s) for s in opt.blur_sig.split(',')]
+        # opt.jpg_method = opt.jpg_method.split(',')
+        # opt.jpg_qual = [int(s) for s in opt.jpg_qual.split(',')]
+        # if len(opt.jpg_qual) == 2:
+        #     opt.jpg_qual = list(range(opt.jpg_qual[0], opt.jpg_qual[1] + 1))
+        # elif len(opt.jpg_qual) > 2:
+        #     raise ValueError("Shouldn't have more than 2 values for --jpg_qual.")
+
+        self.opt = opt
+        return self.opt
+
+
+
+  
